@@ -1,3 +1,5 @@
+name: ramper-web
+
 services:
 
   web:
@@ -6,6 +8,12 @@ services:
     restart: unless-stopped
     environment:
       - TZ=${TZ}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - orchestra
 
@@ -13,9 +21,13 @@ services:
     image: ${CADDY_IMAGE}
     container_name: caddy-proxy
     restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
     ports:
       - "${WEB_PORT}:8123"
       - "${KUMA_PORT}:8124"
+      - "${DOZZLE_PORT}:8125"
     environment:
       - TZ=${TZ}
     volumes:
@@ -34,10 +46,23 @@ services:
       - ${VOLUMES_PATH}/uptime-kuma:/app/data
     environment:
       - TZ=${TZ}
+    mem_limit: 256m
+    networks:
+      - orchestra
+
+  dozzle:
+    image: ${DOZZLE_IMAGE}
+    container_name: dozzle
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+      - DOZZLE_NO_ANALYTICS=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - orchestra
 
 networks:
   orchestra:
-    name: ramper-orchestra
+    name: ramper-web
     driver: bridge

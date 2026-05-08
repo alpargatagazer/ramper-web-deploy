@@ -7,6 +7,7 @@ A micro-orchestra designed to deploy the Ramper website on a Proxmox Docker LXC.
 - **Web Application**: Astro-based site (`ghcr.io/alpargatagazer/ramper-web`).
 - **Proxy**: Caddy acting as a multi-port internal reverse proxy.
 - **Monitoring**: Uptime Kuma to track service health.
+- **Logs**: Dozzle for a web-based view of container logs.
 - **Auto-Updates**: Integrated `dockcheck.sh` automation for GHCR and other registries.
 
 ## Prerequisites
@@ -23,9 +24,10 @@ echo "YOUR_PAT_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-
 
 ### 2. Network Configuration
 
-The orchestra exposes two distinct ports to the host:
+The orchestra exposes three distinct ports to the host:
 - **Port 8123**: Ramper Web.
 - **Port 8124**: Uptime Kuma.
+- **Port 8125**: Dozzle (Logs).
 
 Configure your **Cloudflare Tunnel** (in its own LXC) to point to these specific ports based on your desired subdomains/paths.
 
@@ -46,7 +48,8 @@ Use the `orchestra.sh` script for common operations:
 - `./orchestra.sh up`: Start or update the entire stack.
 - `./orchestra.sh down`: Stop and remove containers.
 - `./orchestra.sh status`: View container health.
-- `./orchestra.sh logs`: View live logs.
+- `./orchestra.sh logs`: View live logs of the services.
+- `./orchestra.sh logs-update`: View the logs of the background updater (Dockcheck).
 
 ## Automated Updates (Dockcheck)
 

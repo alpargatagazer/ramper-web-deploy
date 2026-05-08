@@ -9,26 +9,30 @@ cd "$SCRIPT_DIR"
 
 # Load environment variables
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 DOCKCHECK_URL="https://raw.githubusercontent.com/mag37/dockcheck/main/dockcheck.sh"
 DOCKCHECK_PATH="$SCRIPT_DIR/dockcheck.sh"
+REGCTL_URL="https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64"
 SERVICE_NAME="orchestra-updater"
 
 usage() {
-    echo "Usage: $0 {up|down|status|logs|install-dockcheck|update-dockcheck|setup-daemon}"
+    echo "Usage: $0 {up|down|status|logs|logs-update|install-dockcheck|update-dockcheck|setup-daemon}"
     echo ""
     echo "Orchestra Commands:"
     echo "  up                : Pull latest images and start the orchestra"
     echo "  down              : Stop and remove the orchestra containers"
     echo "  status            : Show status of the orchestra"
-    echo "  logs              : Show logs for all services"
+    echo "  logs              : Show logs for all services (via Docker)"
+    echo "  logs-update       : Show logs for the auto-update daemon (via journalctl)"
     echo ""
     echo "Dockcheck Commands:"
-    echo "  install-dockcheck : Download dockcheck.sh if not present"
+    echo "  install-dockcheck : Download dockcheck.sh and required dependencies (regctl)"
     echo "  update-dockcheck  : Self-update the dockcheck.sh script"
-    echo "  setup-daemon      : Create and enable a systemd service for auto-updates"
+    echo "  setup-daemon      : Create and enable a systemd timer for auto-updates"
 }
 
 case "$1" in
@@ -49,7 +53,12 @@ case "$1" in
     logs)
         docker compose logs -f
         ;;
+    logs-update)
+        echo "📜 Showing logs for $SERVICE_NAME..."
+        journalctl -u "$SERVICE_NAME" -f
+        ;;
     install-dockcheck)
+        # 1. Download Dockcheck
         if [ ! -f "$DOCKCHECK_PATH" ]; then
             echo "📥 Downloading Dockcheck..."
             curl -fsSL "$DOCKCHECK_URL" -o "$DOCKCHECK_PATH"
@@ -57,6 +66,16 @@ case "$1" in
             echo "✅ Dockcheck installed at $DOCKCHECK_PATH"
         else
             echo "ℹ️ Dockcheck is already installed."
+        fi
+
+        # 2. Download regctl (required for remote checks)
+        if ! command -v regctl &> /dev/null; then
+            echo "📥 Downloading regctl dependency..."
+            sudo curl -L "$REGCTL_URL" -o /usr/local/bin/regctl
+            sudo chmod +x /usr/local/bin/regctl
+            echo "✅ regctl installed at /usr/local/bin/regctl"
+        else
+            echo "ℹ️ regctl is already installed."
         fi
         ;;
     update-dockcheck)
@@ -71,31 +90,41 @@ case "$1" in
             exit 1
         fi
         
-        echo "⚙️ Setting up systemd daemon for auto-updates..."
+        echo "⚙️ Setting up systemd timer for auto-updates..."
         
+        # We use a OneShot service + Timer for better management
         cat <<EOF | sudo tee /etc/systemd/system/${SERVICE_NAME}.service
 [Unit]
-Description=Ramper Orchestra Auto-Updater (Dockcheck)
-After=docker.service
+Description=Ramper Orchestra Auto-Updater
+After=network.target docker.service
 
 [Service]
-Type=simple
+Type=oneshot
+User=root
 WorkingDirectory=$SCRIPT_DIR
+# Ensure docker and other binaries are in PATH
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=$DOCKCHECK_PATH -u -n -r
-# Restart every 1 hour (3600 seconds)
-Restart=always
-RestartSec=3600
+EOF
+
+        cat <<EOF | sudo tee /etc/systemd/system/${SERVICE_NAME}.timer
+[Unit]
+Description=Ramper Orchestra Auto-Updater Timer
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=timers.target
 EOF
 
         sudo systemctl daemon-reload
-        sudo systemctl enable ${SERVICE_NAME}.service
-        sudo systemctl start ${SERVICE_NAME}.service
+        sudo systemctl enable --now ${SERVICE_NAME}.timer
         
-        echo "✅ Daemon '${SERVICE_NAME}' setup and started."
-        echo "ℹ️ Use 'sudo systemctl status ${SERVICE_NAME}' to check status."
+        echo "✅ Timer '${SERVICE_NAME}' is active (every 15 min). Check with: systemctl list-timers"
+        echo "ℹ️ You can view update logs with: $0 logs-update"
         ;;
     *)
         usage
