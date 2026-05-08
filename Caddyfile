@@ -1,0 +1,19 @@
+{
+	auto_https off
+}
+
+# Ramper Web
+:8123 {
+	reverse_proxy web:80
+	log {
+		output file /var/log/caddy/web_access.log
+	}
+}
+
+# Uptime Kuma
+:8124 {
+	reverse_proxy uptime-kuma:3001
+	log {
+		output file /var/log/caddy/kuma_access.log
+	}
+}

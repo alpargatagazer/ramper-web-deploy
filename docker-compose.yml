@@ -1,0 +1,43 @@
+services:
+
+  web:
+    image: ${RAMPER_IMAGE}
+    container_name: ramper-web
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+    networks:
+      - orchestra
+
+  proxy:
+    image: ${CADDY_IMAGE}
+    container_name: caddy-proxy
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT}:8123"
+      - "${KUMA_PORT}:8124"
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${VOLUMES_PATH}/caddy_data:/data
+      - ${VOLUMES_PATH}/caddy_config:/config
+      - ${VOLUMES_PATH}/caddy_logs:/var/log/caddy
+    networks:
+      - orchestra
+
+  uptime-kuma:
+    image: ${UPTIME_KUMA_IMAGE}
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - ${VOLUMES_PATH}/uptime-kuma:/app/data
+    environment:
+      - TZ=${TZ}
+    networks:
+      - orchestra
+
+networks:
+  orchestra:
+    name: ramper-orchestra
+    driver: bridge
