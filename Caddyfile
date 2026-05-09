@@ -1,0 +1,45 @@
+{
+	auto_https off
+	admin off # No Caddy API exposed
+}
+
+(security_headers) {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
+(logging) {
+	log {
+		output file /var/log/caddy/{args[0]}_access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+		format json
+	}
+}
+
+# Ramper Web
+:8123 {
+	import security_headers
+	import logging web
+	reverse_proxy web:80
+	encode gzip
+}
+
+# Uptime Kuma
+:8124 {
+	import security_headers
+	import logging kuma
+	reverse_proxy uptime-kuma:3001
+}
+
+# Dozzle (Logs)
+:8125 {
+	import security_headers
+	import logging dozzle
+	reverse_proxy dozzle:8080
+}
