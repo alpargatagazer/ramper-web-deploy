@@ -104,7 +104,7 @@ User=root
 WorkingDirectory=$SCRIPT_DIR
 # Ensure docker and other binaries are in PATH
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=$DOCKCHECK_PATH -u -n -r
+ExecStart=$DOCKCHECK_PATH -a -r -u
 EOF
 
         cat <<EOF | sudo tee /etc/systemd/system/${SERVICE_NAME}.timer
