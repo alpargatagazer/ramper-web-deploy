@@ -72,6 +72,13 @@ You can check the status of the updater with:
 sudo systemctl status orchestra-updater
 ```
 
+### 3. Setup Auto-Code Updates (Git Sync)
+To keep your orchestration code (Caddyfile, Compose, etc.) always up to date with the `main` branch, you can enable the Git sync timer:
+```bash
+./orchestra.sh setup-git-sync
+```
+This will check for changes in the repository every 15 minutes and run `./orchestra.sh up` automatically if new code is pulled.
+
 ## Persistence
 
 Persistent data is stored in the `./volumes` directory:
