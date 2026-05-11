@@ -94,7 +94,7 @@ Description=Ramper Orchestra Auto-Updater Timer
 
 [Timer]
 OnBootSec=5min
-OnUnitActiveSec=15min
+OnUnitActiveSec=5min
 Persistent=true
 
 [Install]
@@ -108,15 +108,15 @@ EOF
         echo "🔄 Checking for code updates in repository..."
         git fetch origin main
         
-        UPSTREAM=${1:-'@{u}'}
-        LOCAL=$(git rev-parse @)
+        UPSTREAM="origin/main"
+        LOCAL=$(git rev-parse HEAD)
         REMOTE=$(git rev-parse "$UPSTREAM")
-        BASE=$(git merge-base @ "$UPSTREAM")
+        BASE=$(git merge-base HEAD "$UPSTREAM")
 
         if [ "$LOCAL" = "$REMOTE" ]; then
             echo "✅ Code is up to date."
         elif [ "$LOCAL" = "$BASE" ]; then
-            echo "📥 New changes detected. Pulling..."
+            echo "📥 New changes detected in $UPSTREAM. Pulling..."
             git pull origin main
             echo "🚀 Redeploying orchestra..."
             "$0" up
@@ -144,7 +144,7 @@ Description=Ramper Orchestra Git Sync Timer
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=15min
+OnUnitActiveSec=5min
 Persistent=true
 
 [Install]
@@ -152,7 +152,7 @@ WantedBy=timers.target
 EOF
         sudo systemctl daemon-reload
         sudo systemctl enable --now ${GIT_SYNC_SERVICE}.timer
-        echo "✅ Timer '${GIT_SYNC_SERVICE}' active (every 15 min)."
+        echo "✅ Timer '${GIT_SYNC_SERVICE}' active (every 5 min)."
         ;;
     *)
         usage
