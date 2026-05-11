@@ -21,13 +21,14 @@ UPDATER_SERVICE="orchestra-updater"
 GIT_SYNC_SERVICE="orchestra-git-sync"
 
 usage() {
-    echo "Usage: $0 {up|down|status|logs|logs-update|install-dockcheck|setup-daemon|self-update|setup-git-sync}"
+    echo "Usage: $0 {up|down|status|logs|logs-update|install-dockcheck|setup-daemon|self-update|setup-git-sync|prune}"
     echo ""
     echo "Orchestra Commands:"
-    echo "  up                : Pull latest images and start the orchestra"
+    echo "  up                : Pull latest images, start the orchestra, and cleanup"
     echo "  down              : Stop and remove the orchestra containers"
     echo "  status            : Show status of the orchestra"
     echo "  logs              : Show logs for all services (via Docker)"
+    echo "  prune             : Remove dangling images and layers to save space"
     echo ""
     echo "Dockcheck (Image Updates):"
     echo "  install-dockcheck : Download dockcheck.sh and dependencies (regctl)"
@@ -44,7 +45,9 @@ case "$1" in
         echo "🚀 Starting Ramper Orchestra..."
         docker compose pull
         docker compose up -d --remove-orphans
-        echo "✅ Orchestra is up."
+        echo "🧹 Cleaning up old images..."
+        docker image prune -f
+        echo "✅ Orchestra is up and disk is clean."
         ;;
     down)
         echo "🛑 Stopping Ramper Orchestra..."
@@ -86,7 +89,7 @@ Type=oneshot
 User=root
 WorkingDirectory=$SCRIPT_DIR
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=$DOCKCHECK_PATH -u -n -r
+ExecStart=$DOCKCHECK_PATH -u -a -r
 EOF
         cat <<EOF | sudo tee /etc/systemd/system/${UPDATER_SERVICE}.timer
 [Unit]
@@ -153,6 +156,10 @@ EOF
         sudo systemctl daemon-reload
         sudo systemctl enable --now ${GIT_SYNC_SERVICE}.timer
         echo "✅ Timer '${GIT_SYNC_SERVICE}' active (every 5 min)."
+        ;;
+    prune)
+        echo "🧹 Removing dangling images and layers..."
+        docker image prune -f
         ;;
     *)
         usage
