@@ -89,7 +89,7 @@ Type=oneshot
 User=root
 WorkingDirectory=$SCRIPT_DIR
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=$DOCKCHECK_PATH -u -a -r
+ExecStart=$DOCKCHECK_PATH -u -a -r -p
 EOF
         cat <<EOF | sudo tee /etc/systemd/system/${UPDATER_SERVICE}.timer
 [Unit]
