@@ -6,14 +6,29 @@ services:
     image: ${RAMPER_IMAGE}
     container_name: ramper-web
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     environment:
       - TZ=${TZ}
+      - NEWSLETTER_TRACKING_FILE=/app/data/last-newsletter.json
+      - LISTMONK_URL=${LISTMONK_URL:-http://listmonk:9000}
+      - PUBLIC_NEWSLETTER_LIST_ID=${PUBLIC_NEWSLETTER_LIST_ID}
+      - PUBLIC_NEWSLETTER_LIST_UUID=${PUBLIC_NEWSLETTER_LIST_UUID}
+      - LISTMONK_USERNAME_FILE=/run/secrets/listmonk_api_username
+      - LISTMONK_PASSWORD_FILE=/run/secrets/listmonk_api_password
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+    volumes:
+      - ${VOLUMES_PATH}/web_data:/app/data
+    secrets:
+      - listmonk_api_username
+      - listmonk_api_password
+    depends_on:
+      - listmonk
     networks:
       - orchestra
 
@@ -24,10 +39,17 @@ services:
     depends_on:
       web:
         condition: service_healthy
+      uptime-kuma:
+        condition: service_started
+      dozzle:
+        condition: service_started
+      listmonk:
+        condition: service_started
     ports:
       - "${WEB_PORT}:8123"
       - "${KUMA_PORT}:8124"
       - "${DOZZLE_PORT}:8125"
+      - "${LISTMONK_PORT:-9000}:8126"
     environment:
       - TZ=${TZ}
     volumes:
@@ -42,6 +64,9 @@ services:
     image: ${UPTIME_KUMA_IMAGE}
     container_name: uptime-kuma
     restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
     volumes:
       - ${VOLUMES_PATH}/uptime-kuma:/app/data
     environment:
@@ -61,6 +86,79 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - orchestra
+
+  listmonk-db:
+    image: ${POSTGRES_IMAGE}
+    container_name: listmonk-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD_FILE=/run/secrets/listmonk_db_password
+      - POSTGRES_USER=listmonk
+      - POSTGRES_DB=listmonk
+    volumes:
+      - ${VOLUMES_PATH}/listmonk_db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U listmonk"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    secrets:
+      - listmonk_db_password
+    networks:
+      - orchestra
+
+  listmonk:
+    image: ${LISTMONK_IMAGE}
+    container_name: listmonk
+    restart: unless-stopped
+    depends_on:
+      listmonk-db:
+        condition: service_healthy
+    environment:
+      - TZ=${TZ}
+      - LISTMONK_db__host=listmonk-db
+      - LISTMONK_db__port=5432
+      - LISTMONK_db__user=listmonk
+      - LISTMONK_db__password_FILE=/run/secrets/listmonk_db_password
+      - LISTMONK_db__database=listmonk
+      - LISTMONK_ADMIN_USER_FILE=/run/secrets/listmonk_admin_username
+      - LISTMONK_ADMIN_PASSWORD_FILE=/run/secrets/listmonk_admin_password
+      - LISTMONK_app__address=0.0.0.0:9000
+    command: sh -c "export LISTMONK_ADMIN_USER=$$(cat /run/secrets/listmonk_admin_username) && export LISTMONK_ADMIN_PASSWORD=$$(cat /run/secrets/listmonk_admin_password) && yes | ./listmonk --install && ./listmonk"
+    secrets:
+      - listmonk_db_password
+      - listmonk_admin_username
+      - listmonk_admin_password
+    networks:
+      - orchestra
+
+  watchtower:
+    image: ${WATCHTOWER_IMAGE}
+    container_name: watchtower
+    restart: unless-stopped
+    command: --label-enable --cleanup --interval 300
+    environment:
+      - TZ=${TZ}
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount GHCR auth so Watchtower can pull private images
+      - /root/.docker/config.json:/config.json:ro
+    networks:
+      - orchestra
+
+secrets:
+  listmonk_db_password:
+    file: ./secrets/listmonk_db_password.txt
+  listmonk_admin_username:
+    file: ./secrets/listmonk_admin_username.txt
+  listmonk_admin_password:
+    file: ./secrets/listmonk_admin_password.txt
+  listmonk_api_username:
+    file: ./secrets/listmonk_api_username.txt
+  listmonk_api_password:
+    file: ./secrets/listmonk_api_password.txt
 
 networks:
   orchestra:

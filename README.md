@@ -1,14 +1,42 @@
 # Ramper Web Orchestra
 
-A micro-orchestra designed to deploy the Ramper website on a Proxmox Docker LXC. It features internal traffic management via Caddy, monitoring via Uptime Kuma, and automated updates via Dockcheck.
+A micro-orchestra designed to deploy the Ramper website on a Proxmox Docker LXC. It features internal traffic management via Caddy, monitoring via Uptime Kuma, and automated updates via Watchtower (for the web app) + Renovate (for infrastructure images).
 
 ## Architecture
 
-- **Web Application**: Astro-based site (`ghcr.io/alpargatagazer/ramper-web`).
+- **Web Application**: Astro-based site (`ghcr.io/alpargatagazer/ramper-web`) with hybrid API routing for subscriptions and automated newsletter delivery.
 - **Proxy**: Caddy acting as a multi-port internal reverse proxy.
 - **Monitoring**: Uptime Kuma to track service health.
 - **Logs**: Dozzle for a web-based view of container logs.
-- **Auto-Updates**: Integrated `dockcheck.sh` automation for GHCR and other registries.
+- **Newsletter**: Listmonk self-hosted email subscription manager.
+- **Database**: PostgreSQL dedicated backend database for Listmonk.
+- **Auto-Updates (Web App)**: Watchtower monitors only the `ramper-web` container and restarts it when a new image is published to GHCR.
+- **Auto-Updates (Infrastructure)**: Renovate opens weekly PRs bumping pinned versions in `.env.images`. Merge the PR → git-sync timer picks it up and redeploys.
+
+## Update Workflows
+
+### ramper-web (your Astro site)
+
+```
+Push to main → GitHub Actions CI → Build + Test → Push :latest to GHCR
+                                                        ↓
+                                              Watchtower detects new digest (every 5min)
+                                                        ↓
+                                              Restarts ramper-web container
+                                                        ↓
+                                              Container starts → newsletter:send runs
+                                              (sends email only if new post found)
+```
+
+### Infrastructure services (Caddy, Postgres, Listmonk, etc.)
+
+```
+Renovate PR (weekly) → You review + merge
+                                ↓
+                        git-sync timer (every 5min) detects new commit
+                                ↓
+                        git pull → docker compose up (with new image tags)
+```
 
 ## Prerequisites
 
@@ -22,20 +50,25 @@ Run this command on your LXC:
 echo "YOUR_PAT_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 ```
 
+> [!NOTE]
+> Watchtower reads Docker's auth config (`/root/.docker/config.json`) to pull authenticated images from GHCR.
+
 ### 2. Network Configuration
 
-The orchestra exposes three distinct ports to the host:
+The orchestra exposes distinct ports to the host:
 - **Port 8123**: Ramper Web.
 - **Port 8124**: Uptime Kuma.
 - **Port 8125**: Dozzle (Logs).
+- **Port 9000**: Listmonk (newsletter admin).
 
 Configure your **Cloudflare Tunnel** (in its own LXC) to point to these specific ports based on your desired subdomains/paths.
 
 ## Initial Setup
 
 1. Clone this repository into your LXC.
-2. Review the `.env` file (created from `.env.example`).
-3. Deploy the stack:
+2. Copy `.env.example` to `.env` and fill in values. Note that PUBLIC_NEWSLETTER_LIST_ID and PUBLIC_NEWSLETTER_LIST_UUID are taken from Listmonk admin UI so you need to init that first.
+3. `.env.images` is already committed and managed by Renovate — no need to copy it.
+4. Deploy the stack:
 
 ```bash
 ./orchestra.sh up
@@ -45,42 +78,49 @@ Configure your **Cloudflare Tunnel** (in its own LXC) to point to these specific
 
 Use the `orchestra.sh` script for common operations:
 
-- `./orchestra.sh up`: Start or update the entire stack.
+- `./orchestra.sh up`: Pull latest images, start the entire stack, and cleanup.
 - `./orchestra.sh down`: Stop and remove containers.
 - `./orchestra.sh status`: View container health.
 - `./orchestra.sh logs`: View live logs of the services.
-- `./orchestra.sh logs-update`: View the logs of the background updater (Dockcheck).
+- `./orchestra.sh prune`: Remove dangling images to free disk space.
 
-## Automated Updates (Dockcheck)
+## Automated Updates
 
-Instead of manually checking for new versions, we use `dockcheck.sh` automated via a systemd daemon.
+### Web App (Watchtower)
 
-### 1. Install Dockcheck
-Download the latest script directly:
-```bash
-./orchestra.sh install-dockcheck
-```
+Watchtower runs as a service in the compose stack and polls GHCR every 5 minutes. It only updates containers that carry the `com.centurylinklabs.watchtower.enable=true` label — currently only `ramper-web`.
 
-### 2. Setup the Auto-Update Daemon
-This will create a systemd service that runs Dockcheck every hour to check and apply updates:
-```bash
-./orchestra.sh setup-daemon
-```
+You can optionally configure Watchtower notifications by setting `WATCHTOWER_NOTIFICATION_URL` in `.env` (supports Slack, Discord, Telegram, email via shoutrrr).
 
-You can check the status of the updater with:
-```bash
-sudo systemctl status orchestra-updater
-```
+### Infrastructure Images (Renovate + Git Sync)
 
-### 3. Setup Auto-Code Updates (Git Sync)
-To keep your orchestration code (Caddyfile, Compose, etc.) always up to date with the `main` branch, you can enable the Git sync timer:
+Image versions are pinned in `.env.images` with Renovate annotations. Renovate opens PRs automatically when upstream images have new versions. Once merged, the git-sync timer picks up the change within 5 minutes and redeploys.
+
+To enable the git-sync timer on the LXC:
+
 ```bash
 ./orchestra.sh setup-git-sync
 ```
-This will check for changes in the repository every 15 minutes and run `./orchestra.sh up` automatically if new code is pulled.
+
+## Secrets Management
+
+This deployment implements **Docker Compose Secrets** to avoid storing passwords in environment variables:
+- Admin credentials and database passwords are stored inside the `./secrets/` directory on the host.
+- These files are automatically generated with secure random strings upon running `./orchestra.sh up` for the first time.
+  - `./secrets/listmonk_db_password.txt`: Database access password.
+  - `./secrets/listmonk_admin_username.txt`: Listmonk Superadmin user.
+  - `./secrets/listmonk_admin_password.txt`: Listmonk Superadmin password.
+  - `./secrets/listmonk_api_username.txt`: API user for the web container (defaults to `apiuser`). This must be created from the Listmonk web app UI after initial setup.
+  - `./secrets/listmonk_api_password.txt`: Auto-generated password for the API user. This must be created from the Listmonk web app UI after initial setup.
+
+> [!IMPORTANT]
+> Because Listmonk only auto-creates the Superadmin user on installation, the auto-generated API user will not exist in the database.
+> After the first deployment, you **must** log into the Listmonk dashboard using the admin credentials, navigate to Settings → Users, and manually create the `apiuser` using the password found in `./secrets/listmonk_api_password.txt`. The web container relies on this API user to send automated newsletters.
 
 ## Persistence
 
 Persistent data is stored in the `./volumes` directory:
 - `caddy_data/`: Caddy certificates and config.
 - `uptime-kuma/`: Database and settings for the monitoring service.
+- `listmonk_db/`: PostgreSQL database files.
+- `web_data/`: State file (`last-newsletter.json`) for newsletter tracking.

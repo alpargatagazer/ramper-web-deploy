@@ -4,9 +4,13 @@
 # Persistence
 volumes/
 
-# Downloaded tools
-dockcheck.sh
-
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Secrets
+secrets/
+
+# Markdown files (except README)
+*.md
+!README.md
