@@ -49,7 +49,7 @@ services:
       - "${WEB_PORT}:8123"
       - "${KUMA_PORT}:8124"
       - "${DOZZLE_PORT}:8125"
-      - "${LISTMONK_PORT:-9000}:8126"
+      - "${LISTMONK_PORT}:8126"
     environment:
       - TZ=${TZ}
     volumes:
