@@ -10,7 +10,6 @@ services:
       - TZ=${TZ}
       - INTERNAL_LISTMONK_URL=http://listmonk:9000
       - LISTMONK_URL=http://listmonk:9000
-      - LISTMONK_LIST_ID=${LISTMONK_LIST_ID:-1}
       - NEWSLETTER_TRACKING_FILE=/app/data/last-newsletter.json
       - LISTMONK_USERNAME_FILE=/run/secrets/listmonk_api_username
       - LISTMONK_PASSWORD_FILE=/run/secrets/listmonk_api_password
@@ -41,10 +40,13 @@ services:
         condition: service_started
       dozzle:
         condition: service_started
+      listmonk:
+        condition: service_started
     ports:
       - "${WEB_PORT}:8123"
       - "${KUMA_PORT}:8124"
       - "${DOZZLE_PORT}:8125"
+      - "${LISTMONK_PORT:-9000}:8126"
     environment:
       - TZ=${TZ}
     volumes:
@@ -120,8 +122,6 @@ services:
       - LISTMONK_ADMIN_PASSWORD_FILE=/run/secrets/listmonk_admin_password
       - LISTMONK_app__address=0.0.0.0:9000
     command: sh -c "export LISTMONK_ADMIN_USER=$$(cat /run/secrets/listmonk_admin_username) && export LISTMONK_ADMIN_PASSWORD=$$(cat /run/secrets/listmonk_admin_password) && yes | ./listmonk --install && ./listmonk"
-    ports:
-      - "${LISTMONK_PORT:-9000}:9000"
     secrets:
       - listmonk_db_password
       - listmonk_admin_username

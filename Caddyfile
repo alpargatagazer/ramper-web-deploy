@@ -49,3 +49,10 @@
 	import logging dozzle
 	reverse_proxy dozzle:8080
 }
+
+# Listmonk
+:8126 {
+	import security_headers
+	import logging listmonk
+	reverse_proxy listmonk:9000
+}
