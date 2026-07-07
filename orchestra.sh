@@ -77,7 +77,7 @@ case "$1" in
             else
                 echo "api_pass_$(date +%s)_$RANDOM" > "$SCRIPT_DIR/secrets/listmonk_api_password.txt"
             fi
-            echo "⚠️ IMPORTANT: You MUST manually create an 'apiuser' in the Listmonk dashboard with the password found in secrets/listmonk_api_password.txt before newsletters will work!"
+            echo "⚠️ IMPORTANT: You MUST manually create an 'apiuser' in the Listmonk dashboard with the password found in secrets/listmonk_api_password.txt before newsletters will work! This is only to init the file"
         fi
 
         echo "🚀 Starting Postgres database..."
