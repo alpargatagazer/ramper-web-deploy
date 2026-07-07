@@ -115,7 +115,7 @@ This deployment implements **Docker Compose Secrets** to avoid storing passwords
 
 > [!IMPORTANT]
 > Because Listmonk only auto-creates the Superadmin user on installation, the auto-generated API user will not exist in the database.
-> After the first deployment, you **must** log into the Listmonk dashboard using the admin credentials, navigate to Settings → Users, and manually create the `apiuser` using the password found in `./secrets/listmonk_api_password.txt`. The web container relies on this API user to send automated newsletters.
+> After the first deployment, you **must** log into the Listmonk dashboard using the admin credentials, navigate to Settings → Users, and manually create the `apiuser`. It will give you a password and you will need to set it in `./secrets/listmonk_api_password.txt`. The web container relies on this API user to send automated newsletters.
 
 ## Persistence
 
