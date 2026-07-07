@@ -25,7 +25,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^\\.env\\.images$"],
+      "managerFilePatterns": [
+        "/^\\.env\\.images$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s\\w+=(?<currentValue>.*)\\s"
       ],
