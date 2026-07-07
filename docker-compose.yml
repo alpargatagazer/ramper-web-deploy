@@ -10,9 +10,10 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
     environment:
       - TZ=${TZ}
-      - INTERNAL_LISTMONK_URL=http://listmonk:9000
-      - LISTMONK_URL=http://listmonk:9000
       - NEWSLETTER_TRACKING_FILE=/app/data/last-newsletter.json
+      - LISTMONK_URL=${LISTMONK_URL:-http://listmonk:9000}
+      - PUBLIC_NEWSLETTER_LIST_ID=${PUBLIC_NEWSLETTER_LIST_ID}
+      - PUBLIC_NEWSLETTER_LIST_UUID=${PUBLIC_NEWSLETTER_LIST_UUID}
       - LISTMONK_USERNAME_FILE=/run/secrets/listmonk_api_username
       - LISTMONK_PASSWORD_FILE=/run/secrets/listmonk_api_password
     healthcheck:

@@ -66,7 +66,7 @@ Configure your **Cloudflare Tunnel** (in its own LXC) to point to these specific
 ## Initial Setup
 
 1. Clone this repository into your LXC.
-2. Copy `.env.example` to `.env` and fill in values.
+2. Copy `.env.example` to `.env` and fill in values. Note that PUBLIC_NEWSLETTER_LIST_ID and PUBLIC_NEWSLETTER_LIST_UUID are taken from Listmonk admin UI so you need to init that first.
 3. `.env.images` is already committed and managed by Renovate — no need to copy it.
 4. Deploy the stack:
 
@@ -110,8 +110,8 @@ This deployment implements **Docker Compose Secrets** to avoid storing passwords
   - `./secrets/listmonk_db_password.txt`: Database access password.
   - `./secrets/listmonk_admin_username.txt`: Listmonk Superadmin user.
   - `./secrets/listmonk_admin_password.txt`: Listmonk Superadmin password.
-  - `./secrets/listmonk_api_username.txt`: API user for the web container (defaults to `apiuser`).
-  - `./secrets/listmonk_api_password.txt`: Auto-generated password for the API user.
+  - `./secrets/listmonk_api_username.txt`: API user for the web container (defaults to `apiuser`). This must be created from the Listmonk web app UI after initial setup.
+  - `./secrets/listmonk_api_password.txt`: Auto-generated password for the API user. This must be created from the Listmonk web app UI after initial setup.
 
 > [!IMPORTANT]
 > Because Listmonk only auto-creates the Superadmin user on installation, the auto-generated API user will not exist in the database.
