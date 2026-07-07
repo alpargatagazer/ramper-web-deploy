@@ -6,6 +6,8 @@ services:
     image: ${RAMPER_IMAGE}
     container_name: ramper-web
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     environment:
       - TZ=${TZ}
       - INTERNAL_LISTMONK_URL=http://listmonk:9000
@@ -126,6 +128,22 @@ services:
       - listmonk_db_password
       - listmonk_admin_username
       - listmonk_admin_password
+    networks:
+      - orchestra
+
+  watchtower:
+    image: ${WATCHTOWER_IMAGE}
+    container_name: watchtower
+    restart: unless-stopped
+    command: --label-enable --cleanup --interval 300
+    environment:
+      - TZ=${TZ}
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount GHCR auth so Watchtower can pull private images
+      - /root/.docker/config.json:/config.json:ro
     networks:
       - orchestra
 

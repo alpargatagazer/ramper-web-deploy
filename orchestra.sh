@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Orchestra Management Script
-# Simplifies deployment, teardown, and automation (Dockcheck & Git Sync)
+# Simplifies deployment, teardown, and automation (Watchtower & Git Sync)
 
 set -e
 
@@ -14,14 +14,17 @@ if [ -f .env ]; then
     set +a
 fi
 
-DOCKCHECK_URL="https://raw.githubusercontent.com/mag37/dockcheck/main/dockcheck.sh"
-DOCKCHECK_PATH="$SCRIPT_DIR/dockcheck.sh"
-REGCTL_URL="https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64"
-UPDATER_SERVICE="orchestra-updater"
+# Load image versions
+if [ -f .env.images ]; then
+    set -a
+    source .env.images
+    set +a
+fi
+
 GIT_SYNC_SERVICE="orchestra-git-sync"
 
 usage() {
-    echo "Usage: $0 {up|down|status|logs|logs-update|install-dockcheck|setup-daemon|self-update|setup-git-sync|prune}"
+    echo "Usage: $0 {up|down|status|logs|self-update|setup-git-sync|prune}"
     echo ""
     echo "Orchestra Commands:"
     echo "  up                : Pull latest images, start the orchestra, and cleanup"
@@ -30,14 +33,12 @@ usage() {
     echo "  logs              : Show logs for all services (via Docker)"
     echo "  prune             : Remove dangling images and layers to save space"
     echo ""
-    echo "Dockcheck (Image Updates):"
-    echo "  install-dockcheck : Download dockcheck.sh and dependencies (regctl)"
-    echo "  setup-daemon      : Create systemd timer for auto-image-updates"
-    echo "  logs-update       : View logs for the image updater daemon"
-    echo ""
-    echo "Git Sync (Code Updates):"
+    echo "Git Sync (Config/Infra Updates):"
     echo "  self-update       : Check for changes in 'main' and redeploy if found"
-    echo "  setup-git-sync    : Create systemd timer for auto-code-updates"
+    echo "  setup-git-sync    : Create systemd timer for auto-config-updates (every 5min)"
+    echo ""
+    echo "Note: ramper-web image updates are handled automatically by Watchtower."
+    echo "      Infrastructure image updates come via Renovate PRs merged to main."
 }
 
 case "$1" in
@@ -64,7 +65,7 @@ case "$1" in
             fi
             echo "⚠️ Note: Generated admin password saved in secrets/listmonk_admin_password.txt"
         fi
-        
+
         # Dedicated API User credentials for the web container
         if [ ! -f "$SCRIPT_DIR/secrets/listmonk_api_username.txt" ]; then
             echo "apiuser" > "$SCRIPT_DIR/secrets/listmonk_api_username.txt"
@@ -108,57 +109,10 @@ case "$1" in
     logs)
         docker compose logs -f
         ;;
-    logs-update)
-        echo "📜 Showing logs for $UPDATER_SERVICE..."
-        journalctl -u "$UPDATER_SERVICE" -f
-        ;;
-    install-dockcheck)
-        if [ ! -f "$DOCKCHECK_PATH" ]; then
-            echo "📥 Downloading Dockcheck..."
-            curl -fsSL "$DOCKCHECK_URL" -o "$DOCKCHECK_PATH"
-            chmod +x "$DOCKCHECK_PATH"
-        fi
-        if ! command -v regctl &> /dev/null; then
-            echo "📥 Downloading regctl..."
-            sudo curl -L "$REGCTL_URL" -o /usr/local/bin/regctl
-            sudo chmod +x /usr/local/bin/regctl
-        fi
-        echo "✅ Dockcheck and dependencies installed."
-        ;;
-    setup-daemon)
-        echo "⚙️ Setting up systemd timer for image updates..."
-        cat <<EOF | sudo tee /etc/systemd/system/${UPDATER_SERVICE}.service
-[Unit]
-Description=Ramper Orchestra Auto-Updater
-After=network.target docker.service
-
-[Service]
-Type=oneshot
-User=root
-WorkingDirectory=$SCRIPT_DIR
-Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=$DOCKCHECK_PATH -u -a -r -p
-EOF
-        cat <<EOF | sudo tee /etc/systemd/system/${UPDATER_SERVICE}.timer
-[Unit]
-Description=Ramper Orchestra Auto-Updater Timer
-
-[Timer]
-OnBootSec=5min
-OnUnitActiveSec=5min
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-EOF
-        sudo systemctl daemon-reload
-        sudo systemctl enable --now ${UPDATER_SERVICE}.timer
-        echo "✅ Timer '${UPDATER_SERVICE}' active."
-        ;;
     self-update)
         echo "🔄 Checking for code updates in repository..."
         git fetch origin main
-        
+
         UPSTREAM="origin/main"
         LOCAL=$(git rev-parse HEAD)
         REMOTE=$(git rev-parse "$UPSTREAM")
@@ -171,8 +125,6 @@ EOF
             git pull origin main
             echo "🚀 Redeploying orchestra..."
             "$0" up
-            echo "✉️ Triggering Newsletter Automation..."
-            docker compose exec -T ramper-web npm run newsletter:send || echo "⚠️ Newsletter automation skipped or failed."
         else
             echo "⚠️ Diverged branches. Manual intervention required."
         fi
