@@ -124,7 +124,7 @@ services:
       - LISTMONK_ADMIN_USER_FILE=/run/secrets/listmonk_admin_username
       - LISTMONK_ADMIN_PASSWORD_FILE=/run/secrets/listmonk_admin_password
       - LISTMONK_app__address=0.0.0.0:9000
-    command: sh -c "export LISTMONK_ADMIN_USER=$$(cat /run/secrets/listmonk_admin_username) && export LISTMONK_ADMIN_PASSWORD=$$(cat /run/secrets/listmonk_admin_password) && yes | ./listmonk --install && ./listmonk"
+    command: sh -c "export LISTMONK_ADMIN_USER=$$(cat /run/secrets/listmonk_admin_username) && export LISTMONK_ADMIN_PASSWORD=$$(cat /run/secrets/listmonk_admin_password) && ./listmonk --install --idempotent --yes && ./listmonk --upgrade --yes && ./listmonk"
     secrets:
       - listmonk_db_password
       - listmonk_admin_username
