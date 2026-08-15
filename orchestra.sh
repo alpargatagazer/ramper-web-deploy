@@ -15,9 +15,9 @@ if [ -f .env ]; then
 fi
 
 # Load image versions
-if [ -f .env.images ]; then
+if [ -f .env.versions ]; then
     set -a
-    source .env.images
+    source .env.versions
     set +a
 fi
 
