@@ -26,10 +26,10 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^\\.env\\.images$/"
+        "(^|/)\\.env\\.images$"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s\\w+=(?<currentValue>.*)\\s"
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)\\n\\w+=(?:.*?):(?<currentValue>[^\\s]+)"
       ],
       "versioningTemplate": "docker"
     }
