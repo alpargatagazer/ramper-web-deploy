@@ -7,14 +7,16 @@
     {
       "description": "Group GitHub Actions version updates",
       "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions"
+      "groupName": "GitHub Actions",
+      "dependencyDashboardApproval": false
     },
     {
       "description": "Group all non-major Docker image updates into a single weekly PR",
       "matchManagers": ["custom.regex"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Docker images (non-major)",
-      "schedule": ["before 9am on monday"]
+      "schedule": ["before 9am on monday"],
+      "dependencyDashboardApproval": false
     },
     {
       "description": "Require dashboard approval for major updates",
@@ -26,12 +28,12 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "(^|/)\\.env\\.images$"
+        "/^\\.env\\.images$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)\\n\\w+=(?:.*?):(?<currentValue>[^\\s]+)"
+        "datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\s\\w+=(?<currentValue>.*)\\s"
       ],
-      "versioningTemplate": "docker"
+      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
     }
   ]
 }
