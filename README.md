@@ -11,7 +11,7 @@ A micro-orchestra designed to deploy the Ramper website on a Proxmox Docker LXC.
 - **Newsletter**: Listmonk self-hosted email subscription manager.
 - **Database**: PostgreSQL dedicated backend database for Listmonk.
 - **Auto-Updates (Web App)**: Watchtower monitors only the `ramper-web` container and restarts it when a new image is published to GHCR.
-- **Auto-Updates (Infrastructure)**: Renovate opens weekly PRs bumping pinned versions in `.env.images`. Merge the PR → git-sync timer picks it up and redeploys.
+- **Auto-Updates (Infrastructure)**: Renovate opens weekly PRs bumping pinned versions in `.env.versions`. Merge the PR → git-sync timer picks it up and redeploys.
 
 ## Update Workflows
 
@@ -67,7 +67,7 @@ Configure your **Cloudflare Tunnel** (in its own LXC) to point to these specific
 
 1. Clone this repository into your LXC.
 2. Copy `.env.example` to `.env` and fill in values. Note that PUBLIC_NEWSLETTER_LIST_ID and PUBLIC_NEWSLETTER_LIST_UUID are taken from Listmonk admin UI so you need to init that first.
-3. `.env.images` is already committed and managed by Renovate — no need to copy it.
+3. `.env.versions` is already committed and managed by Renovate — no need to copy it.
 4. Deploy the stack:
 
 ```bash
@@ -94,7 +94,7 @@ You can optionally configure Watchtower notifications by setting `WATCHTOWER_NOT
 
 ### Infrastructure Images (Renovate + Git Sync)
 
-Image versions are pinned in `.env.images` with Renovate annotations. Renovate opens PRs automatically when upstream images have new versions. Once merged, the git-sync timer picks up the change within 5 minutes and redeploys.
+Image versions are pinned in `.env.versions` with Renovate annotations. Renovate opens PRs automatically when upstream images have new versions. Once merged, the git-sync timer picks up the change within 5 minutes and redeploys.
 
 To enable the git-sync timer on the LXC:
 

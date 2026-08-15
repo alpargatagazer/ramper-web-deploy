@@ -28,12 +28,12 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^\\.env\\.images$/"
+        "/^\\.env\\.versions$/"
       ],
       "matchStrings": [
         "datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\s\\w+=(?<currentValue>.*)\\s"
       ],
-      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
+      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}docker{{/if}}"
     }
   ]
 }
