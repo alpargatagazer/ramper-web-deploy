@@ -136,9 +136,11 @@ services:
     image: nickfedor/watchtower:${WATCHTOWER_IMAGE_VERSION}
     container_name: watchtower
     restart: unless-stopped
-    command: --label-enable --cleanup --interval 300
     environment:
       - TZ=${TZ}
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_POLL_INTERVAL=300
       - WATCHTOWER_NOTIFICATIONS=shoutrrr
       - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
     volumes:

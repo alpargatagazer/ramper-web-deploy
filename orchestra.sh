@@ -95,7 +95,7 @@ case "$1" in
         docker compose pull
         docker compose up -d --remove-orphans
         echo "🧹 Cleaning up old images..."
-        docker image prune -f
+        docker image prune -af
         echo "✅ Orchestra is up and disk is clean."
         ;;
     down)
@@ -160,8 +160,8 @@ EOF
         echo "✅ Timer '${GIT_SYNC_SERVICE}' active (every 5 min)."
         ;;
     prune)
-        echo "🧹 Removing dangling images and layers..."
-        docker image prune -f
+        echo "🧹 Removing unused images and layers..."
+        docker image prune -af
         ;;
     *)
         usage
